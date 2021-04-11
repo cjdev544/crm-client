@@ -1,12 +1,33 @@
-import Link from 'next/link';
+import { useState } from 'react';
 import { useFormik } from 'formik';
+import { useRouter } from 'next/router';
+import Link from 'next/link';
 import * as yup from 'yup';
+import { gql, useMutation } from '@apollo/client';
 
 import ButtonInput from 'components/ButtonInput';
 import InputForm from 'components/InputForm';
 import FormError from 'components/FormError';
 
+const REGISTER_USER = gql`
+  mutation createUser($input: UserInput) {
+    createUser(input: $input) {
+      id
+      name
+      lastName
+      email
+      createAt
+    }
+  }
+`;
+
 const Register = () => {
+  const [createUser] = useMutation(REGISTER_USER);
+
+  const [message, setMessage] = useState(null);
+
+  const router = useRouter();
+
   const formik = useFormik({
     initialValues: {
       name: '',
@@ -21,8 +42,8 @@ const Register = () => {
       lastName: yup.string().required('El apellido es obligatorio'),
       email: yup
         .string()
-        .email('El formato del correo no es valido')
-        .required('El correo es obligatorio'),
+        .required('El correo es obligatorio')
+        .email('El formato del correo no es valido'),
       password: yup
         .string()
         .required('La contraseña es obligatoria')
@@ -32,14 +53,42 @@ const Register = () => {
         .required('El campo es obligatorio')
         .oneOf([yup.ref('password'), null], 'Las contraseñas no coinciden'),
     }),
-    onSubmit: (values) => {
-      console.log('enviando...');
-      console.log(values);
+
+    onSubmit: async (values) => {
+      const { name, lastName, email, password } = values;
+
+      try {
+        await createUser({
+          variables: {
+            input: {
+              name,
+              lastName,
+              email,
+              password,
+            },
+          },
+        });
+        setMessage('Usuario creado correctamente. Seras redirigido al Login');
+        setTimeout(() => {
+          setMessage(null);
+          router.push('/login');
+        }, 3000);
+      } catch (err) {
+        setMessage(err.message);
+        setTimeout(() => {
+          setMessage(null);
+        }, 3000);
+      }
     },
   });
 
   return (
     <>
+      {message && (
+        <div className="bg-white py-2 px-3 w-full my-3 max-w-sm text-center mx-auto">
+          {message}
+        </div>
+      )}
       <h1 className="text-center text-2xl text-white font-light">
         Nueva Cuenta
       </h1>
